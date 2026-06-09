@@ -1,27 +1,18 @@
-const express = require("express");
-const cors = require("cors");
-const axios = require("axios");
-require("dotenv").config();
-
-const app = express();
-const PORT =5000;
-
-app.use(cors());
-app.use(express.json());
-
-// 🧪 test route
-app.get("/", (req, res) => {
-  res.send("Summarizer API running 🚀");
-});
-
-// 🤖 Summarize route
-app.post("/summarize", async (req, res) => {
+app.post("/recipe", async (req, res) => {
   try {
-    const { text } = req.body;
+    const { ingredients } = req.body;
 
-    if (!text) {
-      return res.status(400).json({ error: "Text is required" });
+    if (
+      !ingredients ||
+      !Array.isArray(ingredients) ||
+      ingredients.length === 0
+    ) {
+      return res.status(400).json({
+        error: "Ingredients array is required",
+      });
     }
+
+    const ingredientList = ingredients.join(", ");
 
     const response = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -30,7 +21,19 @@ app.post("/summarize", async (req, res) => {
         messages: [
           {
             role: "user",
-            content: `Summarize this text simply and clearly:\n\n${text}`,
+            content: `
+You are a professional chef AI.
+
+Create a simple recipe using ONLY these ingredients:
+${ingredientList}
+
+Rules:
+- Use only given ingredients (basic pantry items like salt, pepper, oil allowed)
+- Give a recipe name
+- Provide ingredients list
+- Provide step-by-step instructions
+- Keep it simple and beginner friendly
+            `,
           },
         ],
       },
@@ -42,18 +45,12 @@ app.post("/summarize", async (req, res) => {
       }
     );
 
-    // 🧠 extract only summary text
-    const summary = response.data.choices[0].message.content;
+    const recipe = response.data.choices[0].message.content;
 
-    // ✅ send clean response
-    res.json({ summary });
+    res.json({ recipe });
 
   } catch (err) {
     console.error(err.response?.data || err.message);
-    res.status(500).json({ error: "Summarization failed" });
+    res.status(500).json({ error: "Recipe generation failed" });
   }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 });
